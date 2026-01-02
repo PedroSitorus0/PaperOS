@@ -506,6 +506,11 @@ shell_loop:
     call strcmp
     jc _cmd_help
 
+    mov si, buffer
+    mov di, cmd_desktop_str
+    call strcmp
+    jc _cmd_desktop
+
 ;---error handling for unknown command---
     mov si, msg_unknown
     call kprint
@@ -2146,9 +2151,180 @@ _internal_disk_update:
     call driver_disk_write_legacy
     ret
 
+; =================================================================
+; [PAPEROS v2.0 - GUI WITH WINDOW & ICON]
+; Fitur: Desktop Teal + Taskbar + Window "Welcome" + Icon + Cursor
+; =================================================================
 
-; --- Sub-fungsi Internal untuk Update Disk (Mengurangi duplikasi kode) ---
+_cmd_desktop:
+    mov ax, 0x0013  ; Mode VGA 320x200
+    int 0x10
+    mov ax, 0xA000
+    mov es, ax
 
+    ; Posisi Awal Kursor Mouse
+    mov cx, 160     ; X
+    mov dx, 100     ; Y
+
+.render_loop:
+    ; --- 1. LAYER BACKGROUND (TEAL) ---
+    xor di, di
+    mov al, 3       ; Warna 3 (Teal)
+    push cx         ; Simpan X mouse
+    mov cx, 64000
+    rep stosb
+    pop cx          ; Balikin X mouse
+
+    ; --- 2. LAYER IKON "MY COMPUTER" (Pojok Kiri Atas) ---
+    ; Gambar di X=10, Y=10. Ukuran 20x20.
+    push cx
+    push dx 
+    mov di, 6420   ; Offset (10 * 320) + 10
+    mov dx, 20      ; Tinggi Icon
+.draw_icon_loop:
+    mov cx, 20      ; Lebar Icon
+    mov al, 14      ; Warna 14 (Kuning - Folder)
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_icon_loop
+    
+    pop dx
+    pop cx
+
+    ; --- 3. LAYER WINDOW "WELCOME" (Tengah) ---
+    ; Kotak Utama (Abu-abu)
+    ; X=80, Y=50, Lebar=160, Tinggi=80
+    push cx
+    push dx
+    
+    mov di, 16080   ; Offset (50 * 320) + 80
+    mov dx, 80      ; Tinggi Window
+.draw_win_body:
+    mov cx, 160     ; Lebar Window
+    mov al, 7       ; Warna 7 (Abu-abu Muda)
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_win_body
+
+    ; Title Bar (Biru Tua)
+    ; X=82, Y=52, Lebar=156, Tinggi=10
+    mov di, 16722   ; Offset ((50+2) * 320) + 82
+    mov dx, 10      ; Tinggi Title Bar
+.draw_win_title:
+    mov cx, 156     ; Lebar
+    mov al, 1       ; Warna 1 (Biru Tua)
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_win_title
+
+    ; Tombol Close [X] (Merah)
+    ; Di pojok kanan title bar
+    mov di, 16868   ; Offset ((50+2)*320) + (80+160-14)
+    mov dx, 8       ; Tinggi Tombol
+.draw_close_btn:
+    mov cx, 8
+    mov al, 4       ; Merah
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_close_btn
+    
+    pop dx
+    pop cx
+
+    ; --- 4. LAYER TASKBAR (Bawah) ---
+    mov di, 60800
+    mov al, 7       ; Abu-abu
+    push cx
+    mov cx, 3200
+    rep stosb
+    pop cx
+    
+    ; Tombol Start (Hijau)
+    push cx
+    push dx
+    mov di, 61125
+    mov dx, 14      ; Tinggi lebih besar
+.draw_start:
+    mov cx, 40      ; Lebar lebih besar
+    mov al, 2       ; Hijau
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_start
+    pop dx
+    pop cx
+
+    ; --- 5. LAYER KURSOR MOUSE (Paling Atas) ---
+    push dx
+    push cx
+    
+    mov ax, 320
+    mul dx
+    add ax, cx
+    mov di, ax
+    
+    ; Gambar Panah Mouse (Putih)
+    mov al, 15
+    mov [es:di], al
+    mov [es:di+1], al
+    mov [es:di+320], al
+    mov [es:di+321], al
+    mov [es:di+640], al
+    
+    pop cx
+    pop dx
+
+    ; --- 6. INPUT LOOP ---
+    mov ah, 0x00
+    int 0x16
+    
+    cmp al, 27      ; ESC
+    je .exit_gui
+    
+    cmp al, 'w'
+    je .up
+    cmp al, 's'
+    je .down
+    cmp al, 'a'
+    je .left
+    cmp al, 'd'
+    je .right
+    
+    jmp .render_loop
+
+.up:
+    dec dx
+    jmp .render_loop
+.down:
+    inc dx
+    jmp .render_loop
+.left:
+    dec cx
+    jmp .render_loop
+.right:
+    inc cx
+    jmp .render_loop
+
+.exit_gui:
+    mov ax, 0x0003
+    int 0x10
+    mov ax, ds
+    mov es, ax
+    jmp shell_loop
 
 ; ==========================================================
 ; SERIAL DRIVER (UART 8250 - COM1)
@@ -3168,7 +3344,6 @@ cmd_info        db 'info', 0
 
 
 
-
 msg_root        db 'root (uid=0)', 13, 10, 0
 msg_ls_header   db 'PERMISSIONS  SIZE   NAME', 13, 10, 0
 msg_ls_files    db '-rwx------   2KB    kernel.bin', 13, 10, '-rw-r--r--   1KB    notes.txt', 13, 10, 'dr-xr-xr-x   ---    /dev (virtual)', 13, 10, 0
@@ -3835,6 +4010,9 @@ ARP_OP_REPLY    dw 0x0200       ; Reply (0x0002)
 cmd_arp_test     db 'arp_test', 0
 msg_arp_sending  db 'Menyusun paket ARP Request...', 13, 10, 0
 msg_arp_done     db '[OK] Paket telah dikirim ke Gateway!', 13, 10, 0
+
+cmd_desktop_str db 'desktop', 0
+gui_state db 0   ; 0 = File Tertutup, 1 = File Terbuka
 
 ; BUFFER PENYIMPANAN (2 Kilobyte)
 ; Ini adalah "kertas" virtual kita. Data akan hilang jika restart.
