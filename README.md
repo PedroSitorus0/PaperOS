@@ -182,8 +182,3 @@ The PaperOS Shell (CLI) accepts the following commands:
 * `christmas` : Plays "Silent Night" via PC Speaker.
 * `gui` : Experimental graphical mode (Paper-Tron game concept).
 
----
-
-## 8. License
-
-This project is released under the MIT License. It is intended for educational purposes in the fields of Operating System Design and Computer Architecture.
