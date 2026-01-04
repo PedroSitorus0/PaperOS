@@ -175,6 +175,7 @@ The PaperOS Shell (CLI) accepts the following commands:
 * `clear` : Clears the video memory buffer.
 * `reboot` : Performs a soft reset of the system.
 * `shutdown` : Powers off the system via APM (Advanced Power Management).
+* `desktop` : Open the GUI mode (BETA TEST).
 
 **Entertainment**
 
