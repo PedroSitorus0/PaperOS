@@ -1,5 +1,5 @@
 # PaperOS: A 16-bit Monolithic Real-Mode Operating System
-
+# v2.0
 ## 1. Project Abstract
 
 PaperOS is an experimental, open-source monolithic operating system developed in x86 Assembly (NASM) and C. It functions within the 16-bit Real Mode environment, interacting directly with system hardware components such as the CPU registers, BIOS interrupts, memory addresses, and Input/Output ports without the abstraction layers found in modern kernels.
@@ -175,6 +175,7 @@ The PaperOS Shell (CLI) accepts the following commands:
 * `clear` : Clears the video memory buffer.
 * `reboot` : Performs a soft reset of the system.
 * `shutdown` : Powers off the system via APM (Advanced Power Management).
+* `desktop` : Open the GUI mode (BETA TEST).
 
 **Entertainment**
 
