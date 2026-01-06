@@ -2708,7 +2708,7 @@ _cmd_arp_test:
     jmp shell_loop
 
 ; =================================================================
-; [PAPERSUDOKU v2.0.1 - REVISI VISUAL]
+; [PAPERSUDOKU v2.0.1 - REVISI VISUAL BETA]
 ; Fix: Grid Rapi, Angka Presisi, Real-time Update
 ; =================================================================
 
