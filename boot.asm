@@ -33,7 +33,7 @@ start:
     mov ax, 0x1000      ; Target RAM: 0x1000
     mov es, ax
     xor bx, bx          ; Offset: 0
-    
+
     mov ah, 0x02        ; BIOS Read
     mov al, 30          ; BACA 17 SEKTOR (8.5 KB)
     mov ch, 0           ; Cylinder 0

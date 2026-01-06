@@ -511,6 +511,11 @@ shell_loop:
     call strcmp
     jc _cmd_desktop
 
+    mov si, buffer
+    mov di, cmd_sudoku_str
+    call strcmp
+    jc _cmd_sudoku
+
 ;---error handling for unknown command---
     mov si, msg_unknown
     call kprint
@@ -2591,163 +2596,6 @@ _generic_editor:
     call kprint
     jmp shell_loop
 
-; _generic_editor:
-;     mov [target_sector], cl         
-;     call _internal_disk_read_auto   ; 1. Baca data disk
-
-;     ; --- CEK KEAMANAN ---
-;     cmp byte [text_buffer + 8], 1   
-;     jne .unlocked
-;     call _verify_access             
-;     jc shell_loop                   
-
-; .unlocked:
-;     call driver_vga_clear           
-;     mov si, msg_editor_header
-;     call kprint
-
-;     ; -----------------------------------------------------------
-;     ; [FITUR MARGIN 1] Cetak Margin Awal untuk Baris Pertama
-;     ; -----------------------------------------------------------
-;     mov si, margin_line             ; Cetak " | "
-;     call kprint
-
-;     ; 2. TAMPILKAN TEKS LAMA
-;     ; Kita perlu loop manual agar setiap ada Enter di teks lama,
-;     ; margin baru otomatis dicetak.
-;     mov si, text_buffer + 32        
-    
-; .print_existing_loop:
-;     lodsb                           ; Ambil 1 char
-;     or al, al                       ; Cek Null
-;     jz .scan_done_print             ; Selesai print
-    
-;     call kputc                      ; Cetak karakter
-    
-;     cmp al, 10                      ; Apakah ini Enter (Line Feed)?
-;     jne .print_existing_loop
-    
-;     ; Jika Enter, cetak Margin lagi
-;     push si
-;     mov si, margin_line
-;     call kprint
-;     pop si
-;     jmp .print_existing_loop
-
-; .scan_done_print:
-;     ; 3. SCAN POSISI KURSOR (Untuk sinkronisasi BX)
-;     mov di, text_buffer + 16
-;     xor bx, bx                      
-; .scan_loop:
-;     cmp byte [di + bx], 0           
-;     je .scan_done
-;     inc bx
-;     cmp bx, 490                     
-;     jge .scan_done
-;     jmp .scan_loop
-
-; .scan_done:
-;     add bx, 16                      ; BX siap di posisi ketik terakhir
-
-; .edit_loop:
-;     call kgetc                      ; Tunggu input (Gunakan kgetc yang sudah diperbaiki!)
-    
-;     cmp al, 27                      ; ESC
-;     je .save_exit
-;     cmp al, 13                      ; ENTER
-;     je .handle_enter
-;     cmp al, 0x08                    ; BACKSPACE
-;     je .handle_backspace
-
-;     ; --- TULIS KARAKTER BIASA ---
-;     cmp bx, 510                     
-;     jge .edit_loop
-    
-;     mov [text_buffer + bx], al      
-;     inc bx
-;     call kputc                      
-;     jmp .edit_loop
-
-; .handle_enter:
-;     cmp bx, 508                     
-;     jge .edit_loop
-    
-;     ; Simpan CR/LF ke RAM (Data File tetap bersih, tanpa margin)
-;     mov byte [text_buffer + bx], 13
-;     inc bx
-;     mov byte [text_buffer + bx], 10
-;     inc bx
-    
-;     ; -----------------------------------------------------------
-;     ; [FITUR MARGIN 2] Efek Enter + Margin Baru
-;     ; -----------------------------------------------------------
-;     mov al, 13                      ; Turun baris visual
-;     call kputc
-;     mov al, 10
-;     call kputc
-    
-;     mov si, margin_line             ; Cetak " | " di awal baris baru
-;     call kprint
-    
-;     jmp .edit_loop
-
-; .handle_backspace:
-;     cmp bx, 16                      ; Batas aman header
-;     je .edit_loop
-;     dec bx
-    
-;     ; DETEKSI PENGHAPUSAN ENTER
-;     cmp byte [text_buffer + bx], 10 ; Apakah kita menghapus Line Feed?
-;     jne .normal_bs
-    
-;     dec bx                          ; Hapus juga CR (13) pasangannya
-;     mov byte [text_buffer + bx], 0  ; Hapus di RAM
-    
-;     ; -----------------------------------------------------------
-;     ; [FITUR MARGIN 3] Hapus Visual Margin (" | ")
-;     ; Karena margin ada 3 karakter (" | "), kita harus mundur 3x
-;     ; ditambah mundur 1x untuk Enter-nya sendiri.
-;     ; -----------------------------------------------------------
-    
-;     ; 1. Mundur Visual ke atas (Reverse Enter)
-;     ; Ini agak trik di mode teletype BIOS, tapi cara termudahnya
-;     ; adalah menghapus margin baris bawahnya.
-    
-;     ; Cara simpel: Hapus karakter terakhir di layar
-;     call kputc_bs ; Hapus LF
-;     call kputc_bs ; Hapus CR
-    
-;     ; Hapus Margin " | " (3 karakter)
-;     call kputc_bs ; Spasi
-;     call kputc_bs ; Garis
-;     call kputc_bs ; Spasi
-    
-;     jmp .edit_loop
-
-; .normal_bs:
-;     mov byte [text_buffer + bx], 0  ; Hapus di RAM
-;     call kputc_bs                   ; Hapus visual biasa
-;     jmp .edit_loop
-
-; .save_exit:
-;     mov byte [text_buffer + bx], 0  ; Null terminator
-;     mov bx, text_buffer             ; RESET BX (Penting!)
-;     mov cl, [target_sector] 
-;     call driver_disk_write          
-    
-;     mov si, newline
-;     call kprint                     ; Rapikan baris pesan simpan
-    
-;     jc .save_fail
-;     mov si, msg_editor_saved
-;     call kprint
-;     jmp shell_loop
-
-; .save_fail:
-;     mov si, msg_disk_err
-;     call kprint
-;     jmp shell_loop
-
 ; --- HELPER KECIL (Visual Backspace) ---
 kputc_bs:
     mov al, 0x08
@@ -2859,7 +2707,284 @@ _cmd_arp_test:
     
     jmp shell_loop
 
+; =================================================================
+; [PAPERSUDOKU v2.0.1 - REVISI VISUAL]
+; Fix: Grid Rapi, Angka Presisi, Real-time Update
+; =================================================================
 
+_cmd_sudoku:
+    ; 1. Masuk Mode Grafis 13h (320x200)
+    mov ax, 0x0013
+    int 0x10
+    mov ax, 0xA000
+    mov es, ax
+
+    ; Reset Kursor ke 0
+    mov word [sudoku_cursor_idx], 0
+
+.render_loop:
+    ; --- A. BACKGROUND (Biru Tua) ---
+    xor di, di
+    mov al, 1       ; Warna Biru
+    mov cx, 64000
+    rep stosb
+
+    ; --- B. GAMBAR GRID (PERBAIKAN TOTAL) ---
+    ; Grid dimulai di X=40, Y=10 (Biar agak tengah)
+    ; Ukuran sel = 20x20 pixel.
+    
+    ; 1. Gambar 10 Garis HORIZONTAL
+    mov cx, 10          ; Loop 10 garis
+    mov bx, 10          ; Y Start = 10
+.draw_horz:
+    push cx
+    
+    ; Hitung Offset Awal Garis: (Y * 320) + X_Start(40)
+    mov ax, 320
+    mul bx
+    add ax, 40
+    mov di, ax
+    
+    mov cx, 180         ; Panjang garis (9 kotak * 20px)
+    mov al, 15          ; Warna Putih
+    rep stosb           ; Gambar garis
+    
+    add bx, 20          ; Turun 20 pixel untuk garis berikutnya
+    pop cx
+    loop .draw_horz
+
+    ; 2. Gambar 10 Garis VERTIKAL
+    mov cx, 10          ; Loop 10 garis
+    mov bx, 40          ; X Start = 40
+.draw_vert:
+    push cx
+    push bx             ; Simpan posisi X saat ini
+    
+    ; Setup Loop Gambar ke Bawah
+    mov dx, 180         ; Tinggi garis (9 kotak * 20px)
+    
+    ; Hitung Offset Awal: (Y_Start(10) * 320) + X_Saat_Ini
+    mov ax, 320
+    mov si, 10          ; Y Start
+    mul si
+    add ax, bx          ; Tambah X
+    mov di, ax
+    
+.vert_pixel:
+    mov byte [es:di], 15 ; Pixel Putih
+    add di, 320          ; Turun 1 baris pixel
+    dec dx
+    jnz .vert_pixel
+    
+    pop bx              ; Ambil X lagi
+    add bx, 20          ; Geser X 20 pixel ke kanan
+    pop cx
+    loop .draw_vert
+
+    ; --- C. GAMBAR KURSOR (Highlight Merah) ---
+    ; Konversi Index (0-80) ke Baris/Kolom Grid
+    mov ax, [sudoku_cursor_idx]
+    mov bl, 9
+    div bl              ; AL = Row (0-8), AH = Col (0-8)
+    
+    ; Hitung Posisi Pixel Kursor
+    ; PixelX = 40 + (Col * 20) + 1
+    ; PixelY = 10 + (Row * 20) + 1
+    
+    xor bx, bx
+    mov bl, ah          ; Ambil Col
+    imul bx, 20
+    add bx, 41          ; X Start (40) + 1 margin
+    
+    xor dx, dx
+    mov dl, al          ; Ambil Row
+    imul dx, 20
+    add dx, 11          ; Y Start (10) + 1 margin
+    
+    ; Gambar Kotak Merah (19x19 pixel)
+    push dx             ; Simpan Y Pixel
+    
+    ; Hitung DI
+    mov ax, 320
+    mul dx
+    add ax, bx
+    mov di, ax
+    
+    mov dx, 19          ; Tinggi Kursor
+.draw_cursor_box:
+    mov cx, 19          ; Lebar Kursor
+    mov al, 4           ; Warna Merah
+    push di
+    rep stosb
+    pop di
+    add di, 320
+    dec dx
+    jnz .draw_cursor_box
+    
+    pop dx              ; Restore Y Pixel
+
+    ; --- D. GAMBAR ANGKA (Loop 0-80) ---
+    mov cx, 0           ; Counter Index
+
+.draw_numbers_loop:
+    cmp cx, 81
+    je .wait_input
+    
+    ; Ambil angka dari array
+    mov bx, cx
+    mov al, [sudoku_board + bx]
+    
+    cmp al, 0           ; Jika 0 (kosong), lewati
+    je .next_number
+    
+    push ax             ; Simpan Angka
+    push cx             ; Simpan Index
+    
+    ; Hitung Row/Col Grid dari Index
+    mov ax, cx
+    mov bl, 9
+    div bl              ; AL = Row Grid, AH = Col Grid
+    
+    ; KONVERSI KE KURSOR TEKS (BIOS)
+    ; Mode 13h teks adalah 40 kolom x 25 baris.
+    ; Grid Grafis kita mulai di X=40, Y=10.
+    ; 1 Karakter font BIOS kira-kira 8x8 pixel.
+    
+    ; Rumus Kira-kira agar pas di tengah kotak 20x20:
+    ; TextRow = (PixelY / 8) + Adjustment
+    ; TextCol = (PixelX / 8) + Adjustment
+    
+    ; PixelY = 10 + (RowGrid * 20) + 6 (offset tengah)
+    ; PixelX = 40 + (ColGrid * 20) + 6 (offset tengah)
+    
+    ; --- Hitung Baris Teks (DL) ---
+    mov dh, al          ; Row Grid
+    mov al, 20
+    mul dh              ; Row * 20
+    add ax, 10          ; + Y Start
+    add ax, 6           ; + Tengah
+    mov bl, 8
+    div bl              ; Bagi 8 (Tinggi font)
+    mov dh, al          ; Hasil ke DH (Row Text)
+
+    ; --- Hitung Kolom Teks (DL) ---
+    mov al, ah          ; Col Grid (tadi ada di AH hasil div pertama)
+    push ax             ; Simpan Col Grid sementara
+    
+    mov al, 20
+    pop bx              ; Ambil Col Grid ke BL (tapi harus di register yg bisa dimuli)
+    push dx             ; Simpan DH (Row Text) yg sudah jadi
+    
+    mov dl, bl          ; Pindah Col Grid ke DL biar aman
+    mul dl              ; AL (20) * DL (Col Grid)
+    add ax, 40          ; + X Start
+    add ax, 6           ; + Tengah
+    mov bl, 8
+    div bl              ; Bagi 8 (Lebar font)
+    mov dl, al          ; Hasil ke DL (Col Text)
+    
+    pop bx              ; Ambil DH (Row Text) dari stack ke BX dulu
+    mov dh, bl          ; Pindahin ke DH
+    
+    ; Set Kursor BIOS
+    mov ah, 0x02
+    mov bh, 0
+    int 0x10
+    
+    pop cx              ; Balikin Index
+    pop ax              ; Balikin Angka
+    
+    ; Cetak Angka
+    add al, '0'         ; Int ke ASCII
+    mov ah, 0x0E
+    
+    ; Cek Warna (Soal vs Jawaban)
+    mov bx, cx
+    cmp byte [sudoku_lock + bx], 0
+    jne .color_clue
+    mov bl, 15          ; Putih (Jawaban User)
+    jmp .do_print
+.color_clue:
+    mov bl, 14          ; Kuning (Soal) - Lebih kontras dari hijau
+.do_print:
+    int 0x10
+    
+.next_number:
+    inc cx
+    jmp .draw_numbers_loop
+
+    ; --- E. INPUT HANDLING ---
+.wait_input:
+    mov ah, 0x00
+    int 0x16
+
+    cmp al, 27          ; ESC
+    je .exit_sudoku
+
+    ; Navigasi (WASD)
+    cmp al, 'w'
+    je .move_up
+    cmp al, 's'
+    je .move_down
+    cmp al, 'a'
+    je .move_left
+    cmp al, 'd'
+    je .move_right
+    
+    ; Input Angka (1-9)
+    cmp al, '1'
+    jl .render_loop     ; JIKA BUKAN ANGKA, REDRAW SAJA
+    cmp al, '9'
+    jg .render_loop
+    
+    ; Masukkan Angka
+    ; 1. Cek Kunci
+    mov bx, [sudoku_cursor_idx]
+    cmp byte [sudoku_lock + bx], 0
+    jne .render_loop    ; Jika terkunci, abaikan
+    
+    ; 2. Simpan & UPDATE
+    sub al, '0'
+    mov [sudoku_board + bx], al
+    jmp .render_loop    ; <--- LOMPAT KE ATAS UNTUK REDRAW REALTIME!
+
+; --- LOGIKA PERGERAKAN (Sama, tapi pastikan lompat ke .render_loop) ---
+.move_right:
+    mov bx, [sudoku_cursor_idx]
+    inc bx
+    cmp bx, 81
+    jge .render_loop
+    mov [sudoku_cursor_idx], bx
+    jmp .render_loop
+
+.move_left:
+    mov bx, [sudoku_cursor_idx]
+    dec bx
+    cmp bx, 0
+    jl .render_loop
+    mov [sudoku_cursor_idx], bx
+    jmp .render_loop
+
+.move_up:
+    mov bx, [sudoku_cursor_idx]
+    sub bx, 9
+    cmp bx, 0
+    jl .render_loop
+    mov [sudoku_cursor_idx], bx
+    jmp .render_loop
+
+.move_down:
+    mov bx, [sudoku_cursor_idx]
+    add bx, 9
+    cmp bx, 81
+    jge .render_loop
+    mov [sudoku_cursor_idx], bx
+    jmp .render_loop
+
+.exit_sudoku:
+    mov ax, 0x0003
+    int 0x10
+    jmp shell_loop
 
 ; ==========================================================
 ; SOUND DRIVER (FIXED FOR FAST CPUs)
@@ -4013,6 +4138,45 @@ msg_arp_done     db '[OK] Paket telah dikirim ke Gateway!', 13, 10, 0
 
 cmd_desktop_str db 'desktop', 0
 gui_state db 0   ; 0 = File Tertutup, 1 = File Terbuka
+
+; =================================================================
+; [PAPERSUDOKU DATA]
+; 0 = Kosong. Angka lain = Soal.
+; Puzzle Sederhana (Easy)
+; =================================================================
+
+cmd_sudoku_str db 'sudoku', 0
+msg_sudoku_win db 'SUDOKU SOLVED! GREAT JOB!', 13, 10, 0
+
+; Papan yang akan berubah-ubah saat user mengetik
+sudoku_board:
+    db 5,3,0, 0,7,0, 0,0,0
+    db 6,0,0, 1,9,5, 0,0,0
+    db 0,9,8, 0,0,0, 0,6,0
+    
+    db 8,0,0, 0,6,0, 0,0,3
+    db 4,0,0, 8,0,3, 0,0,1
+    db 7,0,0, 0,2,0, 0,0,6
+    
+    db 0,6,0, 0,0,0, 2,8,0
+    db 0,0,0, 4,1,9, 0,0,5
+    db 0,0,0, 0,8,0, 0,7,9
+
+; Papan Kunci (Copy dari atas) untuk mencegah user menimpa soal
+sudoku_lock:
+    db 5,3,0, 0,7,0, 0,0,0
+    db 6,0,0, 1,9,5, 0,0,0
+    db 0,9,8, 0,0,0, 0,6,0
+    db 8,0,0, 0,6,0, 0,0,3
+    db 4,0,0, 8,0,3, 0,0,1
+    db 7,0,0, 0,2,0, 0,0,6
+    db 0,6,0, 0,0,0, 2,8,0
+    db 0,0,0, 4,1,9, 0,0,5
+    db 0,0,0, 0,8,0, 0,7,9
+
+sudoku_cursor_idx dw 0  ; Posisi kursor (0-80)
+
+
 
 ; BUFFER PENYIMPANAN (2 Kilobyte)
 ; Ini adalah "kertas" virtual kita. Data akan hilang jika restart.
