@@ -2689,7 +2689,7 @@ _cmd_sudoku:
     mov al, 15          ; Warna Putih
     rep stosb           ; Gambar garis
     
-    add bx, 20          ; Turun 20 pixel untuk garis berikutnya
+    add bx, 15          ; Turun 20 pixel untuk garis berikutnya
     pop cx
     loop .draw_horz
 
