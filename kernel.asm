@@ -61,66 +61,6 @@ _start:
     call flush_keyboard_buffer
 
 ; =================================================================
-; [SHELL / COMMAND INTERPRETER]
-; =================================================================
-; shell_loop:
-;     mov si, prompt
-;     call kprint
-
-;     ; Bersihkan buffer input
-;     mov di, buffer
-;     mov cx, 64
-;     mov al, 0
-;     rep stosb
-
-;     mov di, buffer
-;     call kinput
-
-;     mov si, buffer
-;     cmp byte [si], 0
-;     je shell_loop
-
-;     ; --- Command List ---
-;     mov di, cmd_beep
-;     call strcmp
-;     jc _cmd_beep
-
-;     mov si, buffer
-;     mov di, cmd_calc
-;     call strcmp
-;     jc _cmd_calc
-
-;     mov si, buffer
-;     mov di, cmd_clear
-;     call strcmp
-;     jc _cmd_clear
-
-;     mov si, buffer
-;     mov di, cmd_color
-;     call strcmp
-;     jc _cmd_color
-
-;     mov si, buffer
-;     mov di, cmd_fastfetch
-;     call strcmp
-;     jc _cmd_fastfetch
-
-;     mov si, buffer
-;     mov di, cmd_hwinfo
-;     call strcmp
-;     jc _cmd_hwinfo
-
-;     mov si, buffer
-;     mov di, cmd_ls
-;     call strcmp
-;     jc _cmd_ls
-
-;     mov si, buffer
-;     mov di, cmd_mouse
-;     call strcmp
-;     jc _cmd_mouse
-
-; =================================================================
 ; [SHELL / COMMAND INTERPRETER] (FIXED)
 ; =================================================================
 shell_loop:
