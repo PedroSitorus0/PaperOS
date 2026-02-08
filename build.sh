@@ -28,7 +28,7 @@ dd if=boot.bin of=paperos.img conv=notrunc status=none
 dd if=kernel.bin of=paperos.img seek=1 conv=notrunc status=none
 
 # --- 4. EKSEKUSI QEMU ---
-echo "Menjalankan PaperOS v1.9.6..."
+echo "Menjalankan PaperOS v1.9.6"
 qemu-system-x86_64 -drive format=raw,file=paperos.img \
     -audiodev pa,id=snd0 \
     -machine pcspk-audiodev=snd0 \
