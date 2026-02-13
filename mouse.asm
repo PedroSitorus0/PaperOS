@@ -194,6 +194,7 @@ strlen:
 
 exit:
     ; close file descriptor
+    move_down rax, 3
     mov rax, 3
     mov rdi, [fd]
     syscall
